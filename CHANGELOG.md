@@ -1,0 +1,22 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.1.0] - 2026-11-09
+
+### Added
+
+- MCP server (stdio) for the DATAJUD public API (CNJ) with 8 tools:
+  `list_tribunals`, `list_fields`, `search_cases`, `get_case`, `count_cases`,
+  `aggregate_cases`, `search_dsl` (raw query DSL passthrough) and
+  `test_connection`.
+- Catalog of all 91 tribunal indices, generated from the official wiki.
+- Resources: `datajud://tribunals`, `datajud://glossary`, `datajud://examples`,
+  `datajud://terms-of-use`, plus the `datajud://tribunals/{alias}` template.
+- Prompts: `build_query`, `analyze_case`, `research_report`.
+- Library API (`datajud_mcp`) for direct queries against the API.
+- Maximum-strict lint configuration (clippy pedantic + nursery + cargo +
+  individual restriction lints) and a CI workflow.

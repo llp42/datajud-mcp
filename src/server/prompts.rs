@@ -10,7 +10,7 @@ use super::DatajudServer;
 
 /// Default hint when no tribunal was given to `build_query`.
 fn default_tribunal_hint() -> String {
-    return "(to be defined — see list_tribunals)".to_owned();
+    "(to be defined — see list_tribunals)".to_owned()
 }
 
 /// Arguments for the `build_query` prompt.
@@ -37,7 +37,7 @@ struct AnalyzeCaseArgs {
 
 /// Default analytical focus for `analyze_case`.
 fn default_focus() -> String {
-    return "full timeline and current status".to_owned();
+    "full timeline and current status".to_owned()
 }
 
 /// Arguments for the `research_report` prompt.
@@ -52,7 +52,7 @@ struct ResearchReportArgs {
 
 /// Default hint when no tribunals were given to `research_report`.
 fn default_tribunals_hint() -> String {
-    return "(select via list_tribunals)".to_owned();
+    "(select via list_tribunals)".to_owned()
 }
 
 #[expect(
@@ -69,7 +69,7 @@ impl DatajudServer {
     )]
     fn build_query(&self, Parameters(args): Parameters<BuildQueryArgs>) -> GetPromptResult {
         let tribunal = args.tribunal;
-        return GetPromptResult::new(vec![PromptMessage::new_text(
+        GetPromptResult::new(vec![PromptMessage::new_text(
             Role::User,
             format!(
                 "I need to query the DATAJUD public API (CNJ).\n\n\
@@ -90,7 +90,7 @@ impl DatajudServer {
                 tribunal = tribunal,
             ),
         )])
-        .with_description("DATAJUD query plan");
+        .with_description("DATAJUD query plan")
     }
 
     /// Analyzes one case: fetch + interpret the movimentos timeline.
@@ -100,7 +100,7 @@ impl DatajudServer {
     )]
     fn analyze_case(&self, Parameters(args): Parameters<AnalyzeCaseArgs>) -> GetPromptResult {
         let focus = args.focus;
-        return GetPromptResult::new(vec![PromptMessage::new_text(
+        GetPromptResult::new(vec![PromptMessage::new_text(
             Role::User,
             format!(
                 "Analyze case {process_number} in tribunal {tribunal} using the DATAJUD public API.\n\n\
@@ -116,7 +116,7 @@ impl DatajudServer {
                 focus = focus,
             ),
         )])
-        .with_description("DATAJUD case analysis");
+        .with_description("DATAJUD case analysis")
     }
 
     /// Builds a research report that honors the terms of use.
@@ -126,7 +126,7 @@ impl DatajudServer {
     )]
     fn research_report(&self, Parameters(args): Parameters<ResearchReportArgs>) -> GetPromptResult {
         let tribunals = args.tribunals;
-        return GetPromptResult::new(vec![PromptMessage::new_text(
+        GetPromptResult::new(vec![PromptMessage::new_text(
             Role::User,
             format!(
                 "Write a research report about: {topic}\n\
@@ -144,6 +144,6 @@ impl DatajudServer {
                 tribunals = tribunals,
             ),
         )])
-        .with_description("DATAJUD research report");
+        .with_description("DATAJUD research report")
     }
 }

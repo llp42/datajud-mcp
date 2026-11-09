@@ -29,28 +29,28 @@ impl Segment {
     #[must_use]
     #[inline]
     pub const fn as_str(&self) -> &'static str {
-        return match self {
+        match self {
             Self::Superior => "superior",
             Self::Federal => "federal",
             Self::State => "state",
             Self::Labor => "labor",
             Self::Electoral => "electoral",
             Self::Military => "military",
-        };
+        }
     }
 
     /// Human-readable segment label in English.
     #[must_use]
     #[inline]
     pub const fn label(&self) -> &'static str {
-        return match self {
+        match self {
             Self::Superior => "Superior Courts",
             Self::Federal => "Federal Justice",
             Self::State => "State Justice",
             Self::Labor => "Labor Justice",
             Self::Electoral => "Electoral Justice",
             Self::Military => "Military Justice",
-        };
+        }
     }
 
     /// Parses a segment filter value.
@@ -60,7 +60,7 @@ impl Segment {
     #[must_use]
     #[inline]
     pub fn parse(text: &str) -> Option<Self> {
-        return match text.trim().to_ascii_lowercase().as_str() {
+        match text.trim().to_ascii_lowercase().as_str() {
             "superior" | "superiors" | "tribunais_superiores" => Some(Self::Superior),
             "federal" | "justica_federal" => Some(Self::Federal),
             "state" | "estadual" | "justica_estadual" => Some(Self::State),
@@ -68,7 +68,7 @@ impl Segment {
             "electoral" | "eleitoral" | "justica_eleitoral" => Some(Self::Electoral),
             "military" | "militar" | "justica_militar" => Some(Self::Military),
             _ => None,
-        };
+        }
     }
 }
 
@@ -89,29 +89,29 @@ impl Tribunal {
     #[must_use]
     #[inline]
     pub fn index_name(&self) -> String {
-        return format!("api_publica_{}", self.alias);
+        format!("api_publica_{}", self.alias)
     }
 
     /// Full `_search` URL for this tribunal under the given base URL.
     #[must_use]
     #[inline]
     pub fn search_url(&self, base_url: &str) -> String {
-        return format!(
+        format!(
             "{}/{}/_search",
             base_url.trim_end_matches('/'),
             self.index_name()
-        );
+        )
     }
 
     /// Full `_count` URL for this tribunal under the given base URL.
     #[must_use]
     #[inline]
     pub fn count_url(&self, base_url: &str) -> String {
-        return format!(
+        format!(
             "{}/{}/_count",
             base_url.trim_end_matches('/'),
             self.index_name()
-        );
+        )
     }
 }
 
@@ -120,9 +120,7 @@ impl Tribunal {
 #[inline]
 pub fn find(alias: &str) -> Option<&'static Tribunal> {
     let wanted = alias.trim().to_ascii_lowercase();
-    return TRIBUNALS
-        .iter()
-        .find(|tribunal| return tribunal.alias == wanted);
+    TRIBUNALS.iter().find(|tribunal| tribunal.alias == wanted)
 }
 
 /// Filters the catalog by optional segment and free-text query (matches alias or name).
@@ -130,24 +128,24 @@ pub fn find(alias: &str) -> Option<&'static Tribunal> {
 #[inline]
 pub fn search(segment: Option<Segment>, text: Option<&str>) -> Vec<&'static Tribunal> {
     let needle = text
-        .map(|value| return value.trim().to_ascii_lowercase())
+        .map(|value| value.trim().to_ascii_lowercase())
         .unwrap_or_default();
-    return TRIBUNALS
+    TRIBUNALS
         .iter()
-        .filter(|tribunal| return segment.is_none_or(|seg| return tribunal.segment == seg))
+        .filter(|tribunal| segment.is_none_or(|seg| tribunal.segment == seg))
         .filter(|tribunal| {
-            return needle.is_empty()
+            needle.is_empty()
                 || tribunal.alias.contains(&needle)
-                || tribunal.name.to_ascii_lowercase().contains(&needle);
+                || tribunal.name.to_ascii_lowercase().contains(&needle)
         })
-        .collect();
+        .collect()
 }
 
 /// Number of registered tribunals.
 #[must_use]
 #[inline]
 pub const fn total() -> usize {
-    return TRIBUNALS.len();
+    TRIBUNALS.len()
 }
 
 #[cfg(test)]

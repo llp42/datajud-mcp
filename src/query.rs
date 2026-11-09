@@ -94,10 +94,10 @@ impl SortField {
     #[must_use]
     #[inline]
     pub const fn as_str(&self) -> &'static str {
-        return match self {
+        match self {
             Self::Timestamp => "@timestamp",
             Self::FilingDate => "dataAjuizamento",
-        };
+        }
     }
 }
 
@@ -120,10 +120,10 @@ impl SortOrder {
     #[must_use]
     #[inline]
     pub const fn as_str(&self) -> &'static str {
-        return match self {
+        match self {
             Self::Asc => "asc",
             Self::Desc => "desc",
-        };
+        }
     }
 }
 
@@ -159,12 +159,12 @@ pub fn normalize_date(raw: &str, end: bool) -> Result<String, DatajudError> {
     // ISO-like "2024-01-31T12:00:00Z" — pass through unchanged.
     if trimmed
         .split_once('T')
-        .is_some_and(|(_, rest)| return !rest.is_empty())
+        .is_some_and(|(_, rest)| !rest.is_empty())
     {
         return Ok(trimmed.to_owned());
     }
     let digit_count = trimmed.chars().filter(char::is_ascii_digit).count();
-    return match digit_count {
+    match digit_count {
         8 => {
             let compact: String = trimmed.chars().filter(char::is_ascii_digit).collect();
             Ok(format!(
@@ -174,7 +174,7 @@ pub fn normalize_date(raw: &str, end: bool) -> Result<String, DatajudError> {
         }
         // Anything else: pass through; the API accepts flexible date formats.
         _ => Ok(trimmed.to_owned()),
-    };
+    }
 }
 
 /// Normalizes an optional date bound, preserving `None`.
@@ -183,22 +183,22 @@ pub fn normalize_date(raw: &str, end: bool) -> Result<String, DatajudError> {
 ///
 /// Propagates [`DatajudError::InvalidInput`] from [`normalize_date`].
 fn optional_date(raw: Option<&str>, end: bool) -> Result<Option<String>, DatajudError> {
-    return raw.map_or(Ok(None), |text| return normalize_date(text, end).map(Some));
+    raw.map_or(Ok(None), |text| normalize_date(text, end).map(Some))
 }
 
 /// Builds a `match` clause for analyzed text fields.
 fn match_clause(field: &str, value: &str) -> Value {
-    return json!({ "match": { field: value } });
+    json!({ "match": { field: value } })
 }
 
 /// Builds a `match_phrase` clause for exact-phrase name fields.
 fn phrase_clause(field: &str, value: &str) -> Value {
-    return json!({ "match_phrase": { field: value } });
+    json!({ "match_phrase": { field: value } })
 }
 
 /// Builds a `term` clause for exact numeric/keyword fields.
 fn term_clause(field: &str, value: &Value) -> Value {
-    return json!({ "term": { field: value } });
+    json!({ "term": { field: value } })
 }
 
 /// Builds a `range` clause with optional inclusive bounds.
@@ -210,7 +210,7 @@ fn range_clause(field: &str, gte: Option<String>, lte: Option<String>) -> Value 
     if let Some(upper) = lte {
         range.insert("lte".to_owned(), Value::String(upper));
     }
-    return json!({ "range": { field: range } });
+    json!({ "range": { field: range } })
 }
 
 /// Builds the `bool` query for the given filters (`match_all` when empty).
@@ -269,14 +269,8 @@ pub fn build_query(filters: &SearchFilters) -> Result<Value, DatajudError> {
     }
 
     if filters.filing_date_from.is_some() || filters.filing_date_until.is_some() {
-        let gte = match optional_date(filters.filing_date_from.as_deref(), false) {
-            Ok(value) => value,
-            Err(error) => return Err(error),
-        };
-        let lte = match optional_date(filters.filing_date_until.as_deref(), true) {
-            Ok(value) => value,
-            Err(error) => return Err(error),
-        };
+        let gte = optional_date(filters.filing_date_from.as_deref(), false)?;
+        let lte = optional_date(filters.filing_date_until.as_deref(), true)?;
         must.push(range_clause("dataAjuizamento", gte, lte));
     }
     if filters.updated_from.is_some() || filters.updated_until.is_some() {
@@ -321,7 +315,7 @@ pub fn build_query(filters: &SearchFilters) -> Result<Value, DatajudError> {
     if must.is_empty() {
         return Ok(json!({ "match_all": {} }));
     }
-    return Ok(json!({ "bool": { "must": must } }));
+    Ok(json!({ "bool": { "must": must } }))
 }
 
 /// Builds the `_source` clause: either an include list, an exclusion of heavy
@@ -334,7 +328,7 @@ pub fn build_source(fields: Option<&[String]>, include_movements: bool) -> Optio
             return Some(Value::Array(
                 include
                     .iter()
-                    .map(|field| return Value::String(field.clone()))
+                    .map(|field| Value::String(field.clone()))
                     .collect(),
             ));
         }
@@ -342,7 +336,7 @@ pub fn build_source(fields: Option<&[String]>, include_movements: bool) -> Optio
     if !include_movements {
         return Some(json!({ "excludes": ["movimentos"] }));
     }
-    return None;
+    None
 }
 
 /// Validates page size against the documented limits (`0..=10000`).
@@ -359,7 +353,7 @@ pub fn validate_size(size: u64) -> Result<u64, DatajudError> {
             ),
         });
     }
-    return Ok(size);
+    Ok(size)
 }
 
 /// Full `_search` body from structured parameters.
@@ -378,14 +372,8 @@ pub fn build_search_body(
     fields: Option<&[String]>,
     include_movements: bool,
 ) -> Result<Value, DatajudError> {
-    let checked_size = match validate_size(size) {
-        Ok(value) => value,
-        Err(error) => return Err(error),
-    };
-    let query = match build_query(filters) {
-        Ok(value) => value,
-        Err(error) => return Err(error),
-    };
+    let checked_size = validate_size(size)?;
+    let query = build_query(filters)?;
     let mut body = serde_json::Map::new();
     body.insert("size".to_owned(), json!(checked_size));
     body.insert("query".to_owned(), query);
@@ -404,7 +392,7 @@ pub fn build_search_body(
         }
         body.insert("search_after".to_owned(), cursor.clone());
     }
-    return Ok(Value::Object(body));
+    Ok(Value::Object(body))
 }
 
 /// `_count` body (query only).
@@ -414,11 +402,8 @@ pub fn build_search_body(
 /// Returns [`DatajudError::InvalidInput`] when a date bound cannot be normalized.
 #[inline]
 pub fn build_count_body(filters: &SearchFilters) -> Result<Value, DatajudError> {
-    let query = match build_query(filters) {
-        Ok(value) => value,
-        Err(error) => return Err(error),
-    };
-    return Ok(json!({ "query": query }));
+    let query = build_query(filters)?;
+    Ok(json!({ "query": query }))
 }
 
 /// Which aggregation the `aggregate_cases` tool should run.
@@ -449,11 +434,8 @@ pub fn build_agg_body(
     interval: Option<&str>,
     date_field: Option<&str>,
 ) -> Result<Value, DatajudError> {
-    let query = match build_query(filters) {
-        Ok(value) => value,
-        Err(error) => return Err(error),
-    };
-    return match kind {
+    let query = build_query(filters)?;
+    match kind {
         AggKind::Terms => {
             if !AGGREGATABLE_FIELDS.contains(&field) {
                 return Err(DatajudError::InvalidInput {
@@ -498,7 +480,7 @@ pub fn build_agg_body(
                 }
             }))
         }
-    };
+    }
 }
 
 /// Renders a short human note explaining how to fetch the next page, if any.
@@ -508,12 +490,12 @@ pub fn next_page_hint(sort_values: Option<&Value>, size: u64, returned: usize) -
     if u64::try_from(returned).unwrap_or(u64::MAX) < size {
         return None;
     }
-    return sort_values.map(|cursor| {
-        return json!({
+    sort_values.map(|cursor| {
+        json!({
             "search_after": cursor,
             "instruction": "Pass this 'search_after' array (plus the same sort) to the next call to fetch the following page."
-        });
-    });
+        })
+    })
 }
 
 #[cfg(test)]

@@ -5,6 +5,31 @@
 //! from all 91 tribunal indices.
 //!
 //! API documentation: <https://datajud-wiki.cnj.jus.br/api-publica/>.
+//!
+//! # Usage as a library
+//!
+//! The binary is an MCP server; the library underneath can also be used to
+//! query the API directly:
+//!
+//! ```no_run
+//! use datajud_mcp::client::DatajudClient;
+//! use datajud_mcp::config::Config;
+//! use serde_json::json;
+//!
+//! # async fn demo() -> Result<(), datajud_mcp::error::DatajudError> {
+//! // The public API key from the CNJ wiki is the default configuration.
+//! let client = DatajudClient::new(Config::default())?;
+//!
+//! // Search one case by its CNJ number on the TRF1 index.
+//! let body = json!({ "query": { "match": { "numeroProcesso": "00008323520184013202" } } });
+//! let response = client.search("api_publica_trf1", &body).await?;
+//! println!("total hits: {}", response["hits"]["total"]["value"]);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Note: consuming the API implies accepting the CNJ terms of use —
+//! legal, non-commercial purposes only (see `datajud://terms-of-use`).
 
 // Test-only expectations: panicking assertions, direct unwraps and private
 // test functions are idiomatic in tests and fire at least once in the test

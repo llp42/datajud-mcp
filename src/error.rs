@@ -41,7 +41,7 @@ impl DatajudError {
     #[must_use]
     #[inline]
     pub const fn hint(&self) -> Option<&'static str> {
-        return match *self {
+        match *self {
             Self::Network { .. } => Some(
                 "Check internet connectivity. The DATAJUD API is slow on large tribunals (queries can take 30s+); consider raising DATAJUD_TIMEOUT_SECS.",
             ),
@@ -69,14 +69,14 @@ impl DatajudError {
             Self::InvalidInput { .. } => {
                 Some("Fix the input according to the tool schema and the list_fields glossary.")
             }
-        };
+        }
     }
 }
 
 impl fmt::Display for DatajudError {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        return match self {
+        match self {
             Self::Network { message } => write!(formatter, "network error: {message}"),
             Self::Http { status, body } => {
                 let snippet: String = body.chars().take(600).collect();
@@ -87,7 +87,7 @@ impl fmt::Display for DatajudError {
                 write!(formatter, "unknown tribunal alias: '{alias}'")
             }
             Self::InvalidInput { message } => write!(formatter, "invalid input: {message}"),
-        };
+        }
     }
 }
 
@@ -101,17 +101,17 @@ impl From<reqwest::Error> for DatajudError {
                 message: format!("request timed out: {value}"),
             };
         }
-        return Self::Network {
+        Self::Network {
             message: value.to_string(),
-        };
+        }
     }
 }
 
 impl From<serde_json::Error> for DatajudError {
     #[inline]
     fn from(value: serde_json::Error) -> Self {
-        return Self::InvalidJson {
+        Self::InvalidJson {
             message: value.to_string(),
-        };
+        }
     }
 }

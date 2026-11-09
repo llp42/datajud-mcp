@@ -10,6 +10,7 @@ homepage = "https://github.com/llp42/datajud-mcp"
 documentation = "https://docs.rs/datajud-mcp"
 readme = "README.md"
 keywords = ["mcp", "datajud", "cnj", "elasticsearch", "judiciary"]
+exclude = [".github/*", "scripts/*"]
 categories = ["api-bindings"]
 
 [[bin]]
@@ -34,7 +35,7 @@ explicit_outlives_requirements = "deny"
 pedantic = { level = "deny", priority = -1 }
 nursery = { level = "deny", priority = -1 }
 cargo = { level = "deny", priority = -1 }
-needless_return = "allow"
+needless_return = "deny"
 # clippy::restriction, enabled lint-by-lint (enabling the group as a whole is
 # itself flagged by clippy::blanket_clippy_restriction_lints). The lints in the
 # documented-exclusions block at the bottom are individually justified.
@@ -79,7 +80,6 @@ get_unwrap = "deny"
 host_endian_bytes = "deny"
 if_then_some_else_none = "deny"
 impl_trait_in_params = "deny"
-implicit_return = "deny"
 indexing_slicing = "deny"
 infinite_loop = "deny"
 inline_asm_x86_att_syntax = "deny"
@@ -120,7 +120,6 @@ print_stdout = "deny"
 pub_use = "deny"
 pub_with_shorthand = "deny"
 pub_without_shorthand = "deny"
-question_mark_used = "deny"
 rc_buffer = "deny"
 rc_mutex = "deny"
 redundant_test_prefix = "deny"
@@ -161,9 +160,11 @@ verbose_file_reads = "deny"
 wildcard_enum_match_arm = "deny"
 
 # --- documented exclusions (contradictory or domain-required lints) ---
-# clippy::needless_return — explicitly allowed: it is on by default in clippy and
-#   contradicts clippy::implicit_return (enforced below): one demands implicit
-#   tail expressions, the other demands `return`; both cannot hold.
+# clippy::implicit_return — NOT enabled: demanded `return` on every tail
+#   expression and inside closures, contradicting clippy::needless_return and
+#   idiomatic Rust; relaxed for readability (2026-11-09).
+# clippy::question_mark_used — NOT enabled: banned `?`, forcing match pyramids
+#   instead of idiomatic error propagation; relaxed for readability (2026-11-09).
 # clippy::renamed_function_params — NOT enabled: contradicts
 #   clippy::min_ident_chars (also in clippy::restriction): standard trait
 #   signatures (e.g. `fmt(&self, f: &mut Formatter)`) use 1-char names.

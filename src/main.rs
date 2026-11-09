@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     // Log to stderr only: stdout is the protocol channel.
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| return EnvFilter::new("info")),
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
         )
         .with_writer(io::stderr)
         .init();
@@ -31,27 +31,10 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         "starting datajud-mcp (DATAJUD public API — CNJ)"
     );
 
-    let client = match DatajudClient::new(config) {
-        Ok(built) => built,
-        Err(error) => {
-            let boxed: Box<dyn StdError> = Box::new(error);
-            return Err(boxed);
-        }
-    };
+    let client = DatajudClient::new(config)?;
     let server = DatajudServer::new(client);
 
-    let service = match server.serve(stdio()).await {
-        Ok(connected) => connected,
-        Err(error) => {
-            let boxed: Box<dyn StdError> = Box::new(error);
-            return Err(boxed);
-        }
-    };
-    match service.waiting().await {
-        Ok(_quit_reason) => return Ok(()),
-        Err(error) => {
-            let boxed: Box<dyn StdError> = Box::new(error);
-            return Err(boxed);
-        }
-    }
+    let service = server.serve(stdio()).await?;
+    service.waiting().await?;
+    Ok(())
 }

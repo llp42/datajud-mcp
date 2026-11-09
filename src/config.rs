@@ -42,12 +42,12 @@ pub struct Config {
 impl Default for Config {
     #[inline]
     fn default() -> Self {
-        return Self {
+        Self {
             api_key: DEFAULT_API_KEY.to_owned(),
             base_url: DEFAULT_BASE_URL.to_owned(),
             timeout: Duration::from_secs(DEFAULT_TIMEOUT_SECS),
             max_retries: DEFAULT_MAX_RETRIES,
-        };
+        }
     }
 }
 
@@ -80,7 +80,7 @@ impl Config {
                 config.max_retries = count.min(10);
             }
         }
-        return config;
+        config
     }
 }
 

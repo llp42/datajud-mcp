@@ -28,14 +28,14 @@ use crate::{glossary, query, tribunals};
 
 /// Wraps a JSON value as a pretty-printed text content block.
 fn json_text(value: &Value) -> Vec<ContentBlock> {
-    return vec![ContentBlock::text(
-        serde_json::to_string_pretty(value).unwrap_or_else(|_| return value.to_string()),
-    )];
+    vec![ContentBlock::text(
+        serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string()),
+    )]
 }
 
 /// Wraps a JSON value as a successful tool result.
 fn ok_json(value: &Value) -> CallToolResult {
-    return CallToolResult::success(json_text(value));
+    CallToolResult::success(json_text(value))
 }
 
 /// Wraps an error (with hint) as a tool-level error result.
@@ -45,7 +45,7 @@ fn fail(error: &DatajudError) -> CallToolResult {
     if let Some(hint) = error.hint() {
         payload.insert("hint".to_owned(), json!(hint));
     }
-    return CallToolResult::error(json_text(&Value::Object(payload)));
+    CallToolResult::error(json_text(&Value::Object(payload)))
 }
 
 /// Splits the `tribunal` parameter into validated aliases (max 6 per request,
@@ -55,13 +55,13 @@ fn resolve_tribunals(spec: &str) -> Result<Vec<&'static tribunals::Tribunal>, Da
     for part in spec
         .split(',')
         .map(str::trim)
-        .filter(|piece| return !piece.is_empty())
+        .filter(|piece| !piece.is_empty())
     {
         match tribunals::find(part) {
             Some(tribunal) => {
                 if !resolved
                     .iter()
-                    .any(|other: &&tribunals::Tribunal| return other.alias == tribunal.alias)
+                    .any(|other: &&tribunals::Tribunal| other.alias == tribunal.alias)
                 {
                     resolved.push(tribunal);
                 }
@@ -86,15 +86,12 @@ fn resolve_tribunals(spec: &str) -> Result<Vec<&'static tribunals::Tribunal>, Da
             ),
         });
     }
-    return Ok(resolved);
+    Ok(resolved)
 }
 
 /// Resolves exactly one tribunal alias (errors on lists of length != 1).
 fn resolve_one_tribunal(spec: &str) -> Result<&'static tribunals::Tribunal, DatajudError> {
-    let mut resolved = match resolve_tribunals(spec) {
-        Ok(list) => list,
-        Err(error) => return Err(error),
-    };
+    let mut resolved = resolve_tribunals(spec)?;
     if resolved.len() != 1 {
         return Err(DatajudError::InvalidInput {
             message: format!(
@@ -104,28 +101,28 @@ fn resolve_one_tribunal(spec: &str) -> Result<&'static tribunals::Tribunal, Data
             ),
         });
     }
-    return Ok(resolved.remove(0));
+    Ok(resolved.remove(0))
 }
 
 /// Compact rendering of a hit: keeps `_source` (possibly trimmed) + sort cursor.
 fn render_hit(hit: &Value) -> Value {
     let source = hit.get("_source").cloned().unwrap_or(Value::Null);
-    return json!({
+    json!({
         "id": hit.get("_id"),
         "score": hit.get("_score"),
         "sort": hit.get("sort"),
         "data": source,
-    });
+    })
 }
 
 /// Extracts the `hits.hits` array from a raw search response.
 fn hits_of(response: &Value) -> Vec<Value> {
-    return response
+    response
         .get("hits")
-        .and_then(|node| return node.get("hits"))
+        .and_then(|node| node.get("hits"))
         .and_then(Value::as_array)
         .cloned()
-        .unwrap_or_default();
+        .unwrap_or_default()
 }
 
 // ---------------------------------------------------------------------------
@@ -262,20 +259,20 @@ impl DatajudServer {
         let items: Vec<Value> = found
             .iter()
             .map(|tribunal| {
-                return json!({
+                json!({
                     "alias": tribunal.alias,
                     "name": tribunal.name,
                     "segment": tribunal.segment.as_str(),
                     "index": tribunal.index_name(),
                     "search_url": tribunal.search_url(&self.client.config().base_url),
-                });
+                })
             })
             .collect();
-        return ok_json(&json!({
+        ok_json(&json!({
             "total": items.len(),
             "available": tribunals::total(),
             "tribunals": items,
-        }));
+        }))
     }
 
     /// Glossary of the queryable case-metadata attributes.
@@ -287,21 +284,21 @@ impl DatajudServer {
         let fields: Vec<Value> = glossary::search(params.text.as_deref())
             .iter()
             .map(|field| {
-                return json!({
+                json!({
                     "field": field.name,
                     "field_type": field.field_type,
                     "description": field.description,
-                });
+                })
             })
             .collect();
-        return ok_json(&json!({
+        ok_json(&json!({
             "total": fields.len(),
             "fields": fields,
             "aggregatable_fields": glossary::AGGREGATABLE_FIELDS,
             "filed_date_format": "dataAjuizamento is stored as AAAAMMDDHHMMSS (e.g. 20181029000000); the tools accept YYYY-MM-DD and convert it",
             "pagination": "size <= 10000 per page; use sort on @timestamp + search_after for subsequent pages",
             "resource": "the datajud://glossary resource has the full glossary in Markdown",
-        }));
+        }))
     }
 
     /// Structured search with filters, sorting and `search_after` pagination.
@@ -342,18 +339,15 @@ impl DatajudServer {
                 return match self.client.search(&tribunal.index_name(), &body).await {
                     Ok(response) => {
                         let page_hits = hits_of(&response);
-                        let last_sort = page_hits
-                            .last()
-                            .and_then(|hit| return hit.get("sort"))
-                            .cloned();
+                        let last_sort = page_hits.last().and_then(|hit| hit.get("sort")).cloned();
                         let mut out = json!({
                             "tribunal": tribunal.alias,
                             "index": tribunal.index_name(),
                             "took_ms": response.get("took"),
                             "timed_out": response.get("timed_out"),
                             "shards": response.get("_shards"),
-                            "total": response.get("hits").and_then(|node| return node.get("total")),
-                            "max_score": response.get("hits").and_then(|node| return node.get("max_score")),
+                            "total": response.get("hits").and_then(|node| node.get("total")),
+                            "max_score": response.get("hits").and_then(|node| node.get("max_score")),
                             "cases": page_hits.iter().map(render_hit).collect::<Vec<_>>(),
                         });
                         if let Some(map) = out.as_object_mut() {
@@ -364,8 +358,8 @@ impl DatajudServer {
                             }
                             if response
                                 .get("hits")
-                                .and_then(|node| return node.get("total"))
-                                .and_then(|node| return node.get("relation"))
+                                .and_then(|node| node.get("total"))
+                                .and_then(|node| node.get("relation"))
                                 == Some(&json!("gte"))
                             {
                                 map.insert(
@@ -391,7 +385,7 @@ impl DatajudServer {
                     let page_hits = hits_of(&response);
                     totals.push(json!({
                         "tribunal": tribunal.alias,
-                        "total": response.get("hits").and_then(|node| return node.get("total")),
+                        "total": response.get("hits").and_then(|node| node.get("total")),
                         "returned": page_hits.len(),
                     }));
                     for hit in page_hits {
@@ -408,7 +402,7 @@ impl DatajudServer {
             }
         }
         return ok_json(&json!({
-            "tribunals": chosen.iter().map(|tribunal| return tribunal.alias).collect::<Vec<_>>(),
+            "tribunals": chosen.iter().map(|tribunal| tribunal.alias).collect::<Vec<_>>(),
             "totals_by_tribunal": totals,
             "cases": merged,
             "warning": "multi-tribunal searches do not return 'next_page' — query each tribunal separately to paginate",
@@ -454,24 +448,24 @@ impl DatajudServer {
                 let page_hits = hits_of(&response);
                 page_hits.first().map_or_else(
                     || {
-                        return ok_json(&json!({
+                        ok_json(&json!({
                             "tribunal": tribunal.alias,
                             "found": false,
                             "took_ms": response.get("took"),
                             "timed_out": response.get("timed_out"),
                             "shards": response.get("_shards"),
                             "hint": "check the unformatted 20-digit number and the correct tribunal; classified cases (sigilosos) are not exposed. If 'timed_out' is true or shards failed, retry — the public cluster is sometimes slow",
-                        }));
+                        }))
                     },
                     |hit| {
-                        return ok_json(&json!({
+                        ok_json(&json!({
                             "tribunal": tribunal.alias,
                             "found": true,
                             "took_ms": response.get("took"),
                             "timed_out": response.get("timed_out"),
                             "shards": response.get("_shards"),
                             "case": render_hit(hit),
-                        }));
+                        }))
                     },
                 )
             }
@@ -551,15 +545,15 @@ impl DatajudServer {
             Ok(response) => {
                 let aggregation = response
                     .get("aggregations")
-                    .and_then(|node| return node.get("aggregation"));
+                    .and_then(|node| node.get("aggregation"));
                 ok_json(&json!({
                     "tribunal": tribunal.alias,
                     "kind": params.kind,
                     "field": params.field,
-                    "total_documents": response.get("hits").and_then(|node| return node.get("total")),
+                    "total_documents": response.get("hits").and_then(|node| node.get("total")),
                     "took_ms": response.get("took"),
                     "buckets": aggregation
-                        .and_then(|node| return node.get("buckets"))
+                        .and_then(|node| node.get("buckets"))
                         .cloned()
                         .unwrap_or(Value::Null),
                     "full_aggregation": aggregation.cloned().unwrap_or(Value::Null),
@@ -603,14 +597,11 @@ impl DatajudServer {
         &self,
         Parameters(params): Parameters<TestConnectionParams>,
     ) -> CallToolResult {
-        let alias = params.tribunal.unwrap_or_else(|| return "trf1".to_owned());
-        let tribunal = match tribunals::find(&alias) {
-            Some(found) => found,
-            None => {
-                return fail(&DatajudError::UnknownTribunal {
-                    alias: alias.clone(),
-                });
-            }
+        let alias = params.tribunal.unwrap_or_else(|| "trf1".to_owned());
+        let Some(tribunal) = tribunals::find(&alias) else {
+            return fail(&DatajudError::UnknownTribunal {
+                alias: alias.clone(),
+            });
         };
         return match self.client.ping(&tribunal.index_name()).await {
             Ok((response, elapsed)) => ok_json(&json!({
@@ -619,7 +610,7 @@ impl DatajudServer {
                 "index": tribunal.index_name(),
                 "base_url": self.client.config().base_url,
                 "latency_ms": u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX),
-                "total_documents": response.get("hits").and_then(|node| return node.get("total")),
+                "total_documents": response.get("hits").and_then(|node| node.get("total")),
                 "shards": response.get("_shards"),
             })),
             Err(error) => fail(&error),

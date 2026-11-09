@@ -191,16 +191,16 @@ pub static AGGREGATABLE_FIELDS: &[&str] = &[
 #[inline]
 pub fn search(text: Option<&str>) -> Vec<&'static SchemaField> {
     let needle = text
-        .map(|value| return value.trim().to_ascii_lowercase())
+        .map(|value| value.trim().to_ascii_lowercase())
         .unwrap_or_default();
-    return FIELDS
+    FIELDS
         .iter()
         .filter(|field| {
-            return needle.is_empty()
+            needle.is_empty()
                 || field.name.to_ascii_lowercase().contains(&needle)
-                || field.description.to_ascii_lowercase().contains(&needle);
+                || field.description.to_ascii_lowercase().contains(&needle)
         })
-        .collect();
+        .collect()
 }
 
 /// Renders the full glossary as Markdown (used by the `datajud://glossary` resource).
@@ -229,7 +229,7 @@ pub fn render_markdown() -> String {
          - `size` per page: 0 to 10,000 (default 10).\n\
          - Aggregations (`aggs`) use the query syntax documented by the CNJ (Elasticsearch-compatible); reference guide: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-your-data.html\n",
     );
-    return out;
+    out
 }
 
 #[cfg(test)]

@@ -38,11 +38,11 @@ impl DatajudServer {
     #[must_use]
     #[inline]
     pub fn new(client: DatajudClient) -> Self {
-        return Self {
+        Self {
             client,
             tool_router: Self::tool_router(),
             prompt_router: Self::prompt_router(),
-        };
+        }
     }
 }
 
@@ -63,7 +63,7 @@ pub const URI_TERMS: &str = "datajud://terms-of-use";
 #[must_use]
 #[inline]
 pub fn examples_markdown() -> String {
-    return r#"# Query examples — DATAJUD public API
+    r#"# Query examples — DATAJUD public API
 
 Official sources: https://datajud-wiki.cnj.jus.br/api-publica/exemplos/
 
@@ -147,14 +147,14 @@ Or send the arbitrary body with `search_dsl`.
 Any search body in the documented DSL can be sent with
 `search_dsl(tribunal="tjsp", body={...})` — the server forwards the
 `POST /api_publica_{alias}/_search` request unchanged."#
-        .to_owned();
+        .to_owned()
 }
 
 /// Terms-of-use summary — consuming the API implies acceptance.
 #[must_use]
 #[inline]
 pub fn terms_of_use_markdown() -> String {
-    return "# Terms of use — DATAJUD public API
+    "# Terms of use — DATAJUD public API
 
 Official document (PDF): https://formularios.cnj.jus.br/wp-content/uploads/2023/11/Termos-de-uso-api-publica-V1.2.pdf
 Wiki: https://datajud-wiki.cnj.jus.br/api-publica/termo-uso
@@ -172,7 +172,7 @@ Points emphasized by the wiki:
 Data comes from the National Database of the Judiciary (Datajud), protecting
 classified cases and party data (CNJ Ordinance 160/2020).
 "
-    .to_owned();
+    .to_owned()
 }
 
 /// Renders the full tribunal catalog as Markdown (the `datajud://tribunals` resource).
@@ -194,23 +194,20 @@ pub fn tribunals_markdown() -> String {
         }
         writeln!(out, "| `{}` | {} |", tribunal.alias, tribunal.name).unwrap_or(());
     }
-    return out;
+    out
 }
 
 /// JSON details for one tribunal (the `datajud://tribunals/{alias}` template).
 fn tribunal_resource_json(alias: &str) -> Option<Value> {
-    let tribunal = match tribunals::find(alias) {
-        Some(found) => found,
-        None => return None,
-    };
-    return Some(json!({
+    let tribunal = tribunals::find(alias)?;
+    Some(json!({
         "alias": tribunal.alias,
         "name": tribunal.name,
         "segment": tribunal.segment.as_str(),
         "index": tribunal.index_name(),
         "search_url": tribunal.search_url(DEFAULT_BASE_URL),
         "count_url": tribunal.count_url(DEFAULT_BASE_URL),
-    }));
+    }))
 }
 
 // ---------------------------------------------------------------------------
@@ -226,7 +223,7 @@ fn tribunal_resource_json(alias: &str) -> Option<Value> {
 impl ServerHandler for DatajudServer {
     #[inline]
     fn get_info(&self) -> ServerConfig {
-        return ServerConfig::new(
+        ServerConfig::new(
             ServerCapabilities::builder()
                 .enable_tools()
                 .enable_resources()
@@ -249,7 +246,7 @@ impl ServerHandler for DatajudServer {
              (datajud://terms-of-use): legal, non-commercial use only; cite the CNJ/Datajud in \
              derived public reports."
                 .to_owned(),
-        );
+        )
     }
 
     #[inline]
@@ -258,7 +255,7 @@ impl ServerHandler for DatajudServer {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
-        return Ok(ListResourcesResult::with_all_items(vec![
+        Ok(ListResourcesResult::with_all_items(vec![
             Resource::new(URI_TRIBUNALS, "Tribunals (full catalog)")
                 .with_description("Catalog of all 91 tribunal aliases, names and index URLs")
                 .with_mime_type("text/markdown"),
@@ -273,7 +270,7 @@ impl ServerHandler for DatajudServer {
             Resource::new(URI_TERMS, "Terms of use")
                 .with_description("Terms of use summary — acceptance is implied by API consumption")
                 .with_mime_type("text/markdown"),
-        ]));
+        ]))
     }
 
     #[inline]
@@ -282,10 +279,10 @@ impl ServerHandler for DatajudServer {
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, McpError> {
-        return Ok(ListResourceTemplatesResult::with_all_items(vec![
+        Ok(ListResourceTemplatesResult::with_all_items(vec![
             ResourceTemplate::new("datajud://tribunals/{alias}", "Tribunal details")
                 .with_description("Per-tribunal details; {alias} is an index alias such as 'tjsp'"),
-        ]));
+        ]))
     }
 
     #[inline]
@@ -326,6 +323,6 @@ impl ServerHandler for DatajudServer {
                     ));
                 }
             };
-        return Ok(ReadResourceResult::new(vec![contents]).into());
+        Ok(ReadResourceResult::new(vec![contents]).into())
     }
 }

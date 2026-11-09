@@ -49,17 +49,17 @@ impl DatajudClient {
                 });
             }
         };
-        return Ok(Self {
+        Ok(Self {
             http,
             config: Arc::new(config),
-        });
+        })
     }
 
     /// Returns the effective configuration.
     #[must_use]
     #[inline]
     pub fn config(&self) -> &Config {
-        return &self.config;
+        &self.config
     }
 
     /// `POST {base}/{index}/_search` — returns the raw JSON response.
@@ -97,11 +97,8 @@ impl DatajudClient {
     pub async fn ping(&self, index: &str) -> Result<(Value, Duration), DatajudError> {
         let started = Instant::now();
         let body = json!({ "size": 0_u64, "query": { "match_all": {} } });
-        let response = match self.search(index, &body).await {
-            Ok(value) => value,
-            Err(error) => return Err(error),
-        };
-        return Ok((response, started.elapsed()));
+        let response = self.search(index, &body).await?;
+        Ok((response, started.elapsed()))
     }
 
     /// Posts a JSON body with retry/backoff handling for retryable failures.
@@ -155,20 +152,20 @@ impl DatajudClient {
             });
         }
 
-        return serde_json::from_slice(&bytes).map_err(|error| {
+        serde_json::from_slice(&bytes).map_err(|error| {
             let snippet: String = String::from_utf8_lossy(&bytes).chars().take(200).collect();
-            return DatajudError::InvalidJson {
+            DatajudError::InvalidJson {
                 message: format!("{error}; body starts with: {snippet}"),
-            };
-        });
+            }
+        })
     }
 }
 
 /// Network errors and 429/5xx responses are worth retrying.
 const fn is_retryable(error: &DatajudError) -> bool {
-    return match *error {
+    match *error {
         DatajudError::Network { .. } | DatajudError::InvalidJson { .. } => true,
         DatajudError::Http { status, .. } => matches!(status, 429 | 500..=599),
         DatajudError::UnknownTribunal { .. } | DatajudError::InvalidInput { .. } => false,
-    };
+    }
 }
