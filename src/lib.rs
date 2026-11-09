@@ -17,8 +17,8 @@
 //! use serde_json::json;
 //!
 //! # async fn demo() -> Result<(), datajud_mcp::error::DatajudError> {
-//! // The public API key from the CNJ wiki is the default configuration.
-//! let client = DatajudClient::new(Config::default())?;
+//! // Reads DATAJUD_API_KEY (required) and optional DATAJUD_* overrides.
+//! let client = DatajudClient::new(Config::from_env()?)?;
 //!
 //! // Search one case by its CNJ number on the TRF1 index.
 //! let body = json!({ "query": { "match": { "numeroProcesso": "00008323520184013202" } } });

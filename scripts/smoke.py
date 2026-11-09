@@ -36,6 +36,10 @@ def check(name, cond, detail=""):
 
 class Session:
     def __init__(self, binary):
+        env = dict(os.environ)
+        # The server requires DATAJUD_API_KEY; offline checks never call the
+        # API, so a placeholder is fine there. --live needs the real key.
+        env.setdefault("DATAJUD_API_KEY", "offline-smoke-placeholder")
         self.proc = subprocess.Popen(
             [binary],
             stdin=subprocess.PIPE,
@@ -43,6 +47,7 @@ class Session:
             stderr=subprocess.DEVNULL,
             text=True,
             bufsize=1,
+            env=env,
         )
         self.next_id = 1
 
@@ -108,6 +113,9 @@ def call_tool_retry(s, name, arguments, expect, attempts=3, delay=20):
 
 
 def main():
+    if LIVE and not os.environ.get("DATAJUD_API_KEY"):
+        print("ERROR: --live requires DATAJUD_API_KEY in the environment")
+        sys.exit(2)
     print(f"== datajud-mcp smoke test (live={LIVE}) ==")
     s = Session(BIN)
 

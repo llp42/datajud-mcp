@@ -19,7 +19,7 @@ It exposes the complete public API surface — case metadata (*capas processuais
 | Aggregations (`terms`, `date_histogram`, ...) | `aggregate_cases`, or any `aggs` body via `search_dsl` |
 | Pagination `size` (0–10,000) + `search_after` sorted by `@timestamp` | `search_cases` with `next_page` cursor in the response |
 | `_source` field selection / movement trimming | `fields` + `include_movements` parameters |
-| Public API key auth (`Authorization: APIKey ...`) | built in, overridable |
+| Public API key auth (`Authorization: APIKey ...`) | `DATAJUD_API_KEY` env var (required) |
 | Retries with backoff on 429/5xx/network errors | `DATAJUD_MAX_RETRIES` |
 | Queryable field glossary | `list_fields`, `datajud://glossary` |
 | Terms of use awareness | `datajud://terms-of-use` resource + server instructions |
@@ -39,27 +39,37 @@ cargo build --release
 cargo install --path .
 ```
 
+## Get your API key
+
+**<https://datajud-wiki.cnj.jus.br/api-publica/acesso>** — the CNJ publishes the
+public *Chave Pública* on that wiki page. Copy it into the `DATAJUD_API_KEY`
+environment variable (see below).
+
 ## Configuration (environment variables)
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `DATAJUD_API_KEY` | public key from the wiki | credential sent as `Authorization: APIKey <key>` |
+| `DATAJUD_API_KEY` | **required, no default** | credential sent as `Authorization: APIKey <key>` |
 | `DATAJUD_BASE_URL` | `https://api-publica.datajud.cnj.jus.br` | API base URL |
 | `DATAJUD_TIMEOUT_SECS` | `180` | per-request timeout (the API is slow — see below) |
 | `DATAJUD_MAX_RETRIES` | `2` | retries on 429/5xx/network errors |
 | `RUST_LOG` | `info` | logging (always to **stderr**; stdout is the MCP channel) |
 
-The default key is the *Chave Pública* published at
-<https://datajud-wiki.cnj.jus.br/api-publica/acesso>. **The CNJ may rotate it at any
-time** — if tools return 401/403, fetch the current key from that page and set
-`DATAJUD_API_KEY`.
+**The API key is required and deliberately not embedded in the code.** Get the
+*Chave Pública* published at <https://datajud-wiki.cnj.jus.br/api-publica/acesso>
+and set it via the `DATAJUD_API_KEY` environment variable. Configuration lives
+in the environment — **never pass credentials as tool parameters**, since those
+flow through the model's context and client transcripts.
+
+The **CNJ may rotate the key at any time** — if tools return 401/403, fetch the
+current key from that page and update the env var (no reinstall needed).
 
 ## Use with MCP clients
 
 ### Claude Code
 
 ```bash
-claude mcp add datajud -- /path/to/datajud-mcp
+claude mcp add datajud -e DATAJUD_API_KEY=<your key> -- /path/to/datajud-mcp
 ```
 
 ### Claude Desktop / Cursor / generic stdio client
@@ -70,12 +80,15 @@ claude mcp add datajud -- /path/to/datajud-mcp
     "datajud": {
       "command": "/path/to/datajud-mcp",
       "env": {
-        "DATAJUD_API_KEY": "cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw=="
+        "DATAJUD_API_KEY": "<your key — get it at https://datajud-wiki.cnj.jus.br/api-publica/acesso>"
       }
     }
   }
 }
 ```
+
+The server refuses to start without `DATAJUD_API_KEY` and prints where to get
+the key.
 
 ## Tools
 

@@ -35,6 +35,8 @@ jobs:
       - name: Unit tests
         run: cargo test
       - name: MCP protocol smoke test (offline)
+        env:
+          DATAJUD_API_KEY: ci-offline-placeholder
         run: python3 scripts/smoke.py
 
   package:
