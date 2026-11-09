@@ -17,8 +17,28 @@ import os
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BIN = os.path.join(ROOT, "target", "debug", "datajud-mcp")
 LIVE = "--live" in sys.argv
+
+
+def find_binary():
+    """Locates the server binary: DATAJUD_MCP_BIN override, else debug, else release."""
+    override = os.environ.get("DATAJUD_MCP_BIN")
+    if override:
+        return override
+    candidates = [
+        os.path.join(ROOT, "target", "debug", "datajud-mcp"),
+        os.path.join(ROOT, "target", "release", "datajud-mcp"),
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    sys.exit(
+        "ERROR: datajud-mcp binary not found. Run `cargo build` (or `cargo build "
+        "--release`) first, or point DATAJUD_MCP_BIN at the binary."
+    )
+
+
+BIN = find_binary()
 
 ok = 0
 fail = 0
