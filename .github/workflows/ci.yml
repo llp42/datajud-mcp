@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: Format + strict clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: rustfmt (no diffs)
+        run: cargo fmt --all --check
+      - name: clippy (pedantic + nursery + cargo + restriction; -D warnings)
+        run: cargo clippy --all-targets -- -D warnings
+
+  test:
+    name: Build + tests + MCP smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build (release)
+        run: cargo build --release
+      - name: Unit tests
+        run: cargo test
+      - name: MCP protocol smoke test (offline)
+        run: python3 scripts/smoke.py
+
+  package:
+    name: crates.io package check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo package (verify tarball builds)
+        run: cargo package

@@ -1,0 +1,209 @@
+[package]
+name = "datajud-mcp"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "MCP (Model Context Protocol) server for the DATAJUD public API (CNJ) — Brazilian judiciary case metadata"
+license = "MIT"
+repository = "https://github.com/llp42/datajud-mcp"
+homepage = "https://github.com/llp42/datajud-mcp"
+documentation = "https://docs.rs/datajud-mcp"
+readme = "README.md"
+keywords = ["mcp", "datajud", "cnj", "elasticsearch", "judiciary"]
+categories = ["api-bindings"]
+
+[[bin]]
+name = "datajud-mcp"
+path = "src/main.rs"
+
+# Maximum lint strictness: pedantic + nursery + cargo groups, plus every
+# clippy::restriction lint enabled individually. See the documented-exclusions
+# block at the bottom of [lints.clippy].
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+missing_debug_implementations = "deny"
+unreachable_pub = "deny"
+unused = { level = "deny", priority = -1 }
+rust_2018_idioms = { level = "deny", priority = -1 }
+keyword_idents_2024 = "deny"
+elided_lifetimes_in_paths = "deny"
+explicit_outlives_requirements = "deny"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+needless_return = "allow"
+# clippy::restriction, enabled lint-by-lint (enabling the group as a whole is
+# itself flagged by clippy::blanket_clippy_restriction_lints). The lints in the
+# documented-exclusions block at the bottom are individually justified.
+
+absolute_paths = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+arithmetic_side_effects = "deny"
+as_conversions = "deny"
+as_pointer_underscore = "deny"
+as_underscore = "deny"
+assertions_on_result_states = "deny"
+big_endian_bytes = "deny"
+cfg_not_test = "deny"
+clone_on_ref_ptr = "deny"
+cognitive_complexity = "deny"
+multiple_crate_versions = "allow"
+create_dir = "deny"
+dbg_macro = "deny"
+decimal_literal_representation = "deny"
+default_numeric_fallback = "deny"
+default_union_representation = "deny"
+deref_by_slicing = "deny"
+disallowed_script_idents = "deny"
+doc_include_without_cfg = "deny"
+doc_paragraphs_missing_punctuation = "deny"
+else_if_without_else = "deny"
+empty_drop = "deny"
+empty_enum_variants_with_brackets = "deny"
+empty_structs_with_brackets = "deny"
+error_impl_error = "deny"
+exhaustive_enums = "deny"
+exhaustive_structs = "deny"
+exit = "deny"
+expect_used = "deny"
+field_scoped_visibility_modifiers = "deny"
+filetype_is_file = "deny"
+float_arithmetic = "deny"
+float_cmp_const = "deny"
+fn_to_numeric_cast_any = "deny"
+get_unwrap = "deny"
+host_endian_bytes = "deny"
+if_then_some_else_none = "deny"
+impl_trait_in_params = "deny"
+implicit_return = "deny"
+indexing_slicing = "deny"
+infinite_loop = "deny"
+inline_asm_x86_att_syntax = "deny"
+inline_asm_x86_intel_syntax = "deny"
+inline_modules = "deny"
+inline_trait_bounds = "deny"
+integer_division = "deny"
+integer_division_remainder_used = "deny"
+iter_over_hash_type = "deny"
+large_include_file = "deny"
+let_underscore_must_use = "deny"
+let_underscore_untyped = "deny"
+little_endian_bytes = "deny"
+lossy_float_literal = "deny"
+map_err_ignore = "deny"
+map_with_unused_argument_over_ranges = "deny"
+mem_forget = "deny"
+min_ident_chars = "deny"
+missing_assert_message = "deny"
+missing_asserts_for_indexing = "deny"
+missing_docs_in_private_items = "deny"
+missing_inline_in_public_items = "deny"
+mixed_read_write_in_expression = "deny"
+modulo_arithmetic = "deny"
+multiple_unsafe_ops_per_block = "deny"
+mutex_atomic = "deny"
+mutex_integer = "deny"
+needless_raw_strings = "deny"
+non_zero_suggestions = "deny"
+panic = "deny"
+panic_in_result_fn = "deny"
+partial_pub_fields = "deny"
+pathbuf_init_then_push = "deny"
+pointer_format = "deny"
+precedence_bits = "deny"
+print_stderr = "deny"
+print_stdout = "deny"
+pub_use = "deny"
+pub_with_shorthand = "deny"
+pub_without_shorthand = "deny"
+question_mark_used = "deny"
+rc_buffer = "deny"
+rc_mutex = "deny"
+redundant_test_prefix = "deny"
+redundant_type_annotations = "deny"
+ref_patterns = "deny"
+rest_pat_in_fully_bound_structs = "deny"
+return_and_then = "deny"
+same_name_method = "deny"
+semicolon_inside_block = "deny"
+semicolon_outside_block = "deny"
+shadow_reuse = "deny"
+shadow_same = "deny"
+shadow_unrelated = "deny"
+single_char_lifetime_names = "deny"
+str_to_string = "deny"
+string_add = "deny"
+string_lit_chars_any = "deny"
+string_slice = "deny"
+suspicious_xor_used_as_pow = "deny"
+tests_outside_test_module = "deny"
+todo = "deny"
+try_err = "deny"
+undocumented_unsafe_blocks = "deny"
+unimplemented = "deny"
+unnecessary_rest_pattern = "deny"
+unnecessary_safety_comment = "deny"
+unnecessary_safety_doc = "deny"
+unnecessary_self_imports = "deny"
+unneeded_field_pattern = "deny"
+unreachable = "deny"
+unseparated_literal_suffix = "deny"
+unused_result_ok = "deny"
+unused_trait_names = "deny"
+unwrap_in_result = "deny"
+unwrap_used = "deny"
+use_debug = "deny"
+verbose_file_reads = "deny"
+wildcard_enum_match_arm = "deny"
+
+# --- documented exclusions (contradictory or domain-required lints) ---
+# clippy::needless_return — explicitly allowed: it is on by default in clippy and
+#   contradicts clippy::implicit_return (enforced below): one demands implicit
+#   tail expressions, the other demands `return`; both cannot hold.
+# clippy::renamed_function_params — NOT enabled: contradicts
+#   clippy::min_ident_chars (also in clippy::restriction): standard trait
+#   signatures (e.g. `fmt(&self, f: &mut Formatter)`) use 1-char names.
+# clippy::pattern_type_mismatch — NOT enabled: contradicts clippy::ref_patterns
+#   (also in clippy::restriction) and the borrow checker simultaneously: for a
+#   non-Copy enum, ergonomic matches fire this lint while `ref` bindings fire
+#   ref_patterns and moved bindings fail to compile.
+# clippy::rest_pattern_accessible_field — NOT enabled: contradicts
+#   clippy::unnecessary_rest_pattern (also in clippy::restriction): the former
+#   demands `field: _` patterns, the latter demands `..`; both cannot hold.
+# clippy::multiple_crate_versions — NOT enforced: transitive duplicates of
+#   base64/getrandom/syn/windows-sys come from rmcp/reqwest/tokio and cannot be
+#   unified from this crate.
+# clippy::separated_literal_suffix — NOT enabled: contradicts clippy::unseparated_literal_suffix, which is also in clippy::restriction
+# clippy::definition_in_module_root — NOT enabled: contradicts the mod_module_files / self_named_module_files pair; standard rustc layout is used
+# clippy::mod_module_files — NOT enabled: contradicts self_named_module_files; standard rustc layout is used
+# clippy::self_named_module_files — NOT enabled: contradicts mod_module_files; standard rustc layout is used
+# clippy::non_ascii_literal — NOT enabled: PT-BR text (tribunal names, API field names) is required by the domain
+# clippy::std_instead_of_core — NOT enabled: std-only binary: tokio/reqwest/rmcp require std
+# clippy::std_instead_of_alloc — NOT enabled: std-only binary: tokio/reqwest/rmcp require std
+# clippy::alloc_instead_of_core — NOT enabled: std-only binary: tokio/reqwest/rmcp require std
+# clippy::missing_trait_methods — NOT enabled: MCP protocol traits (ServerHandler) provide default methods by design
+# clippy::multiple_inherent_impl — NOT enabled: rmcp macros generate separate #[tool_router]/#[prompt_router] impl blocks
+# clippy::single_call_fn — NOT enabled: helper extraction is deliberate for readability over forced inlining
+# clippy::module_name_repetitions — NOT enabled: self-describing type names (DatajudError, DatajudClient) beat lint-driven renaming
+# clippy::arbitrary_source_item_ordering — NOT enabled: the lint's own docs describe the enforced order as arbitrary; logical grouping wins
+
+[dependencies]
+rmcp = { version = "3.9", features = ["transport-io"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "time", "sync"] }
+serde = { version = "1", features = ["derive"] }
+schemars = "1"
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+
+[profile.release]
+lto = "thin"
+strip = "symbols"

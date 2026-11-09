@@ -1,0 +1,4 @@
+/target
+.firecrawl/
+__pycache__/
+*.pyc
