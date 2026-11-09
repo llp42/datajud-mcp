@@ -141,6 +141,52 @@ pub fn search(segment: Option<Segment>, text: Option<&str>) -> Vec<&'static Trib
         .collect()
 }
 
+/// Suggests the closest known alias for a mistyped tribunal name
+/// (Levenshtein distance of at most 2).
+#[must_use]
+#[inline]
+pub fn suggest(alias: &str) -> Option<&'static Tribunal> {
+    let wanted = alias.trim().to_ascii_lowercase();
+    let mut best: Option<(usize, &'static Tribunal)> = None;
+    for tribunal in TRIBUNALS {
+        let distance = levenshtein(&wanted, tribunal.alias);
+        if distance <= 2 && best.is_none_or(|(best_distance, _)| distance < best_distance) {
+            best = Some((distance, tribunal));
+        }
+    }
+    best.map(|(_, tribunal)| tribunal)
+}
+
+/// Levenshtein edit distance between two strings.
+fn levenshtein(left: &str, right: &str) -> usize {
+    let left_chars: Vec<char> = left.chars().collect();
+    let right_chars: Vec<char> = right.chars().collect();
+    let right_len = right_chars.len();
+    let mut previous: Vec<usize> = (0..=right_len).collect();
+    for (row, left_char) in left_chars.iter().enumerate() {
+        let mut current: Vec<usize> = Vec::with_capacity(right_len.saturating_add(1));
+        current.push(row.saturating_add(1));
+        let mut left_value = row.saturating_add(1);
+        let mut diagonal = row;
+        for (column, right_char) in right_chars.iter().enumerate() {
+            let above = previous
+                .get(column.saturating_add(1))
+                .copied()
+                .unwrap_or_default();
+            let cost = usize::from(left_char != right_char);
+            let insert = left_value.saturating_add(1);
+            let delete = above.saturating_add(1);
+            let substitute = diagonal.saturating_add(cost);
+            let value = insert.min(delete).min(substitute);
+            current.push(value);
+            diagonal = above;
+            left_value = value;
+        }
+        previous = current;
+    }
+    previous.last().copied().unwrap_or(left_chars.len())
+}
+
 /// Number of registered tribunals.
 #[must_use]
 #[inline]
@@ -189,6 +235,26 @@ mod tests {
             "https://api-publica.datajud.cnj.jus.br/api_publica_trf1/_search",
             "search URL pattern from the wiki"
         );
+    }
+
+    #[test]
+    fn suggests_close_aliases() {
+        assert_eq!(
+            suggest("trff5").map(|tribunal| tribunal.alias),
+            Some("trf5"),
+            "typo suggestion"
+        );
+        assert_eq!(
+            suggest("TJSP ").map(|tribunal| tribunal.alias),
+            Some("tjsp"),
+            "case/space"
+        );
+        assert_eq!(
+            suggest("tjspp").map(|tribunal| tribunal.alias),
+            Some("tjsp"),
+            "typo"
+        );
+        assert!(suggest("zzzzzzzz").is_none(), "nothing close enough");
     }
 
     #[test]

@@ -3,6 +3,8 @@
 use std::error::Error as StdError;
 use std::fmt;
 
+use crate::tribunals;
+
 /// Errors produced while talking to the DATAJUD public API or validating input.
 #[derive(Debug)]
 #[non_exhaustive]
@@ -84,7 +86,10 @@ impl fmt::Display for DatajudError {
             }
             Self::InvalidJson { message } => write!(formatter, "invalid JSON response: {message}"),
             Self::UnknownTribunal { alias } => {
-                write!(formatter, "unknown tribunal alias: '{alias}'")
+                write!(formatter, "unknown tribunal alias: '{alias}'")?;
+                tribunals::suggest(alias).map_or(Ok(()), |suggestion| {
+                    write!(formatter, " — did you mean '{}'?", suggestion.alias)
+                })
             }
             Self::InvalidInput { message } => write!(formatter, "invalid input: {message}"),
         }

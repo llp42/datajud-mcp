@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-11-09
+
+### Added
+
+- CNJ process number handling: `get_case` and the `process_number` filter
+  accept formatted numbers (`0003462-37.2022.4.05.8400`) or raw 20 digits.
+- Tribunal inference: when `tribunal` is omitted, `get_case` derives it from
+  the number's J/TR fields (federal, labor, electoral and state courts);
+  when both are given they must agree, and a mismatch produces a clear error.
+- Check-digit validation (Resolução CNJ 65/2008): mismatches are surfaced as
+  `number_warning` with the expected digits.
+- "Did you mean" suggestions for mistyped tribunal aliases.
+
+### Changed
+
+- **Clearer errors for models:** unknown tool parameters are now rejected
+  (`deny_unknown_fields`) instead of being silently ignored, and error
+  messages state what was received, what is expected and how to retry.
+
 ## [0.2.0] - 2026-11-09
 
 ### Changed

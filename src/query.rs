@@ -26,8 +26,9 @@ pub const DEFAULT_SIZE: u64 = 10;
 /// All filters are optional and combined with AND semantics (`bool.must`).
 #[derive(Debug, Clone, Default, Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[non_exhaustive]
+#[serde(deny_unknown_fields)]
 pub struct SearchFilters {
-    /// CNJ unified case number without formatting (API field `numeroProcesso`), e.g. `00008323520184013202`.
+    /// CNJ unified case number (API field `numeroProcesso`), formatted or raw, e.g. `0003462-37.2022.4.05.8400` or `00034623720224058400`.
     pub process_number: Option<String>,
     /// Procedural class code per TPU (API field `classe.codigo`), e.g. 1116 for "Execução Fiscal".
     pub class_code: Option<i64>,

@@ -254,12 +254,54 @@ def main():
     r = s.call_tool("search_dsl", {"tribunal": "tjsp", "body": "not-an-object"})
     check("search_dsl rejects non-object body", r.get("isError") is True, r)
 
+    # Unknown parameters must be rejected, not silently ignored.
+    r = s.call_tool("list_tribunals", {"segmento": "militar"})
+    check(
+        "unknown parameter -> clear error",
+        r.get("isError") is True and "unknown field" in text_of(r),
+        text_of(r)[:150],
+    )
+
+    # Formatted number with a mismatched tribunal must fail with guidance.
+    r = s.call_tool(
+        "get_case",
+        {"tribunal": "trt5", "process_number": "0003462-37.2022.4.05.8400"},
+    )
+    data = json.loads(text_of(r))
+    check(
+        "number/tribunal mismatch -> clear error",
+        r.get("isError") is True and "trf5" in data.get("error", ""),
+        text_of(r)[:200],
+    )
+
+    # A malformed number must produce a precise message.
+    r = s.call_tool("get_case", {"process_number": "0003462-37.2022"})
+    data = json.loads(text_of(r))
+    check(
+        "malformed number -> digit count reported",
+        r.get("isError") is True and "digits" in data.get("error", ""),
+        text_of(r)[:200],
+    )
+
     if LIVE:
         print("-- live API calls (public DATAJUD endpoint) --")
         r = s.call_tool("test_connection", {"tribunal": "tjms"})
         data = json.loads(text_of(r))
         check("test_connection ok", data.get("status") == "ok", text_of(r)[:200])
         print(f"       latency {data.get('latency_ms')} ms, total {data.get('total_documents')}")
+
+        # formatted CNJ number with NO tribunal -> inferred from J/TR fields
+        r, data = call_tool_retry(
+            s,
+            "get_case",
+            {"process_number": "0003462-37.2022.4.05.8400", "include_movements": False},
+            expect=lambda d: isinstance(d, dict) and d.get("found") is True,
+        )
+        check(
+            "formatted number infers tribunal (TRF5)",
+            data.get("tribunal") == "trf5" and data.get("number") == "00034623720224058400",
+            text_of(r)[:200],
+        )
 
         # wiki example 1: known case on TRF1
         r, data = call_tool_retry(

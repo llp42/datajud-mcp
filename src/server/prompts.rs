@@ -15,6 +15,7 @@ fn default_tribunal_hint() -> String {
 
 /// Arguments for the `build_query` prompt.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct BuildQueryArgs {
     /// Research goal in natural language (e.g. "volume of labor cases filed in 2024 in São Paulo").
     goal: String,
@@ -25,6 +26,7 @@ struct BuildQueryArgs {
 
 /// Arguments for the `analyze_case` prompt.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct AnalyzeCaseArgs {
     /// Tribunal alias, e.g. "tjsp".
     tribunal: String,
@@ -42,6 +44,7 @@ fn default_focus() -> String {
 
 /// Arguments for the `research_report` prompt.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct ResearchReportArgs {
     /// Topic of the report (e.g. "tax executions filed in 2023-2024").
     topic: String,

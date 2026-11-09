@@ -19,6 +19,7 @@ use serde_json::{Value, json};
 
 use super::DatajudServer;
 use crate::error::DatajudError;
+use crate::process_number::ProcessNumber;
 use crate::query::{AggKind, SearchFilters, SortField, SortOrder};
 use crate::{glossary, query, tribunals};
 
@@ -104,6 +105,35 @@ fn resolve_one_tribunal(spec: &str) -> Result<&'static tribunals::Tribunal, Data
     Ok(resolved.remove(0))
 }
 
+/// Infers a tribunal alias from a Datajud id prefix (e.g. `TRF5_JE_...` → `trf5`).
+fn id_tribunal_hint(id: &str) -> Option<&'static str> {
+    let prefix = id.split('_').next().unwrap_or_default();
+    tribunals::find(prefix).map(|tribunal| tribunal.alias)
+}
+
+/// Normalizes a `process_number` filter (strips punctuation) and rejects
+/// numbers whose J/TR fields belong to a tribunal outside the query.
+fn normalize_filters(
+    filters: &mut SearchFilters,
+    chosen: &[&'static tribunals::Tribunal],
+) -> Result<(), DatajudError> {
+    let Some(raw_number) = filters.process_number.clone() else {
+        return Ok(());
+    };
+    let parsed = ProcessNumber::parse(&raw_number)?;
+    if let Some(hint) = parsed.tribunal_hint() {
+        if !chosen.iter().any(|tribunal| tribunal.alias == hint) {
+            return Err(DatajudError::InvalidInput {
+                message: format!(
+                    "the process number's J/TR fields point to tribunal '{hint}', which is not among the queried tribunals; query '{hint}' instead"
+                ),
+            });
+        }
+    }
+    filters.process_number = Some(parsed.digits);
+    Ok(())
+}
+
 /// Compact rendering of a hit: keeps `_source` (possibly trimmed) + sort cursor.
 fn render_hit(hit: &Value) -> Value {
     let source = hit.get("_source").cloned().unwrap_or(Value::Null);
@@ -131,6 +161,7 @@ fn hits_of(response: &Value) -> Vec<Value> {
 
 /// Parameters for `list_tribunals`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct ListTribunalsParams {
     /// Optional segment filter: superior | federal | state | labor | electoral | military.
     segment: Option<String>,
@@ -140,6 +171,7 @@ struct ListTribunalsParams {
 
 /// Parameters for `list_fields`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct ListFieldsParams {
     /// Optional free text matched against field name and description.
     text: Option<String>,
@@ -147,6 +179,7 @@ struct ListFieldsParams {
 
 /// Parameters for `search_cases`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct SearchCasesParams {
     /// Tribunal alias (e.g. `tjsp`) or a comma-separated list of up to 6 aliases (e.g. `trf1,trf2`).
     tribunal: String,
@@ -168,10 +201,13 @@ struct SearchCasesParams {
 
 /// Parameters for `get_case`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct GetCaseParams {
-    /// Tribunal alias, e.g. `tjsp`.
-    tribunal: String,
-    /// CNJ unified case number without formatting (API field `numeroProcesso`), e.g. `00008323520184013202`.
+    /// Optional tribunal alias, e.g. `trf5`. Inferred from the process number's
+    /// J/TR fields when omitted; when both are given they must agree.
+    tribunal: Option<String>,
+    /// CNJ unified case number (API field `numeroProcesso`), formatted or raw:
+    /// `0003462-37.2022.4.05.8400` or `00034623720224058400`.
     process_number: Option<String>,
     /// Datajud document id (API field `id`), e.g. `TRF1_JE_00008323520184013202`. Alternative to `process_number`.
     id: Option<String>,
@@ -181,6 +217,7 @@ struct GetCaseParams {
 
 /// Parameters for `count_cases`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct CountCasesParams {
     /// Tribunal alias or a comma-separated list of up to 6 aliases.
     tribunal: String,
@@ -190,6 +227,7 @@ struct CountCasesParams {
 
 /// Parameters for `aggregate_cases`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct AggregateCasesParams {
     /// Tribunal alias (single index), e.g. `tjmg`.
     tribunal: String,
@@ -209,6 +247,7 @@ struct AggregateCasesParams {
 
 /// Parameters for `search_dsl`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct SearchDslParams {
     /// Tribunal alias (single index), e.g. `tjsp`.
     tribunal: String,
@@ -218,6 +257,7 @@ struct SearchDslParams {
 
 /// Parameters for `test_connection`.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct TestConnectionParams {
     /// Tribunal alias to probe (default `trf1`).
     tribunal: Option<String>,
@@ -314,7 +354,10 @@ impl DatajudServer {
             Ok(resolved) => resolved,
             Err(error) => return fail(&error),
         };
-        let filters = params.filters.unwrap_or_default();
+        let mut filters = params.filters.unwrap_or_default();
+        if let Err(error) = normalize_filters(&mut filters, &chosen) {
+            return fail(&error);
+        }
         let size = params.size.unwrap_or(query::DEFAULT_SIZE);
         let sort_field = params.sort_field.unwrap_or_default();
         let sort_order = params.sort_order.unwrap_or_default();
@@ -413,23 +456,73 @@ impl DatajudServer {
     /// Fetches one full case by CNJ number or Datajud id.
     #[tool(
         name = "get_case",
-        description = "Fetch ONE case (capa processual) in full by its CNJ unified number (API field numeroProcesso, e.g. '00008323520184013202') or by its Datajud id (e.g. 'TRF1_JE_00008323520184013202'). Requires the tribunal alias. Returns the complete metadata including the movimentos timeline unless include_movements is false."
+        description = "Fetch ONE case (capa processual) in full by its CNJ unified number (API field numeroProcesso) — formatted or raw, e.g. '0003462-37.2022.4.05.8400' or '00034623720224058400' — or by its Datajud id (e.g. 'TRF5_JE_00034623720224058400'). The tribunal alias is inferred from the number's J/TR fields when omitted, and validated against them when provided. Check digits are verified (a mismatch is reported as number_warning). Returns the complete metadata including the movimentos timeline unless include_movements is false."
     )]
     async fn get_case(&self, Parameters(params): Parameters<GetCaseParams>) -> CallToolResult {
-        let tribunal = match resolve_one_tribunal(&params.tribunal) {
-            Ok(resolved) => resolved,
-            Err(error) => return fail(&error),
-        };
         let include_movements = params.include_movements.unwrap_or(true);
 
-        let lookup = match (&params.id, &params.process_number) {
-            (Some(id), _) => json!({ "term": { "id": id } }),
-            (None, Some(number)) => json!({ "match": { "numeroProcesso": number } }),
+        // Accept formatted CNJ numbers ("0003462-37.2022.4.05.8400") and raw
+        // 20-digit strings; the parsed form also reveals the tribunal.
+        let number = match params.process_number.as_deref().map(ProcessNumber::parse) {
+            Some(Ok(parsed)) => Some(parsed),
+            Some(Err(error)) => return fail(&error),
+            None => None,
+        };
+        if number.is_none() && params.id.is_none() {
+            return fail(&DatajudError::InvalidInput {
+                message: "provide 'process_number' (CNJ number, formatted or raw) or 'id'"
+                    .to_owned(),
+            });
+        }
+
+        let hinted_alias = number
+            .as_ref()
+            .and_then(ProcessNumber::tribunal_hint)
+            .or_else(|| params.id.as_deref().and_then(id_tribunal_hint));
+
+        let tribunal = match (params.tribunal.as_deref(), hinted_alias) {
+            (Some(spec), Some(hint)) => {
+                let chosen = match resolve_one_tribunal(spec) {
+                    Ok(resolved) => resolved,
+                    Err(error) => return fail(&error),
+                };
+                if chosen.alias != hint {
+                    return fail(&DatajudError::InvalidInput {
+                        message: format!(
+                            "tribunal '{spec}' does not match this process number: its J/TR fields belong to '{hint}'. Retry with tribunal=\"{hint}\" (or omit 'tribunal' and let the server infer it)"
+                        ),
+                    });
+                }
+                chosen
+            }
+            (Some(spec), None) => match resolve_one_tribunal(spec) {
+                Ok(resolved) => resolved,
+                Err(error) => return fail(&error),
+            },
+            (None, Some(hint)) => match tribunals::find(hint) {
+                Some(found) => found,
+                None => {
+                    return fail(&DatajudError::UnknownTribunal {
+                        alias: hint.to_owned(),
+                    });
+                }
+            },
             (None, None) => {
                 return fail(&DatajudError::InvalidInput {
-                    message: "provide 'process_number' or 'id'".to_owned(),
+                    message: "could not infer the tribunal from this number — provide 'tribunal' (e.g. 'trf5'; see list_tribunals)".to_owned(),
                 });
             }
+        };
+
+        let lookup = if let Some(id) = &params.id {
+            json!({ "term": { "id": id } })
+        } else if let Some(parsed) = &number {
+            json!({ "match": { "numeroProcesso": parsed.digits } })
+        } else {
+            return fail(&DatajudError::InvalidInput {
+                message: "provide 'process_number' (CNJ number, formatted or raw) or 'id'"
+                    .to_owned(),
+            });
         };
 
         let mut body = serde_json::Map::new();
@@ -439,6 +532,17 @@ impl DatajudServer {
             body.insert("_source".to_owned(), source);
         }
 
+        let number_warning = number.as_ref().and_then(|parsed| {
+            if parsed.check_digits_valid() {
+                return None;
+            }
+            Some(format!(
+                "check digits look wrong: the number carries '{}' but the CNJ algorithm computes '{}' — verify for typos",
+                parsed.given_check_digits(),
+                parsed.expected_check_digits().unwrap_or_default()
+            ))
+        });
+
         return match self
             .client
             .search(&tribunal.index_name(), &Value::Object(body))
@@ -446,28 +550,25 @@ impl DatajudServer {
         {
             Ok(response) => {
                 let page_hits = hits_of(&response);
-                page_hits.first().map_or_else(
-                    || {
-                        ok_json(&json!({
-                            "tribunal": tribunal.alias,
-                            "found": false,
-                            "took_ms": response.get("took"),
-                            "timed_out": response.get("timed_out"),
-                            "shards": response.get("_shards"),
-                            "hint": "check the unformatted 20-digit number and the correct tribunal; classified cases (sigilosos) are not exposed. If 'timed_out' is true or shards failed, retry — the public cluster is sometimes slow",
-                        }))
-                    },
-                    |hit| {
-                        ok_json(&json!({
-                            "tribunal": tribunal.alias,
-                            "found": true,
-                            "took_ms": response.get("took"),
-                            "timed_out": response.get("timed_out"),
-                            "shards": response.get("_shards"),
-                            "case": render_hit(hit),
-                        }))
-                    },
-                )
+                let found_hit = page_hits.first();
+                let mut out = json!({
+                    "tribunal": tribunal.alias,
+                    "number": number.as_ref().map(|parsed| parsed.digits.clone()),
+                    "number_warning": number_warning,
+                    "found": found_hit.is_some(),
+                    "took_ms": response.get("took"),
+                    "timed_out": response.get("timed_out"),
+                    "shards": response.get("_shards"),
+                });
+                if let Some(map) = out.as_object_mut() {
+                    if let Some(hit) = found_hit {
+                        map.insert("case".to_owned(), render_hit(hit));
+                    }
+                    if found_hit.is_none() {
+                        map.insert("hint".to_owned(), json!("check the number and tribunal; classified cases (sigilosos) are not exposed. If 'timed_out' is true or shards failed, retry — the public cluster is sometimes slow"));
+                    }
+                }
+                ok_json(&out)
             }
             Err(error) => fail(&error),
         };
@@ -486,7 +587,10 @@ impl DatajudServer {
             Ok(resolved) => resolved,
             Err(error) => return fail(&error),
         };
-        let filters = params.filters.unwrap_or_default();
+        let mut filters = params.filters.unwrap_or_default();
+        if let Err(error) = normalize_filters(&mut filters, &chosen) {
+            return fail(&error);
+        }
         let body = match query::build_count_body(&filters) {
             Ok(built) => built,
             Err(error) => return fail(&error),
@@ -527,7 +631,10 @@ impl DatajudServer {
             Ok(resolved) => resolved,
             Err(error) => return fail(&error),
         };
-        let filters = params.filters.unwrap_or_default();
+        let mut filters = params.filters.unwrap_or_default();
+        if let Err(error) = normalize_filters(&mut filters, &[tribunal]) {
+            return fail(&error);
+        }
         let bucket_size = params.bucket_size.unwrap_or(20_u64).clamp(1_u64, 1000_u64);
         let body = match query::build_agg_body(
             &filters,

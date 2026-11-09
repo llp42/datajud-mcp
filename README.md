@@ -154,6 +154,27 @@ Liveness probe (size-0 `match_all` on one index, default `trf1`): status, latenc
 | `analyze_case` | fetch one case and interpret its metadata + movement timeline |
 | `research_report` | produce a cited report (with the terms-of-use obligations for public reports) |
 
+## Process numbers
+
+`get_case` and the `process_number` filter accept the number **formatted or
+raw** — punctuation is stripped automatically:
+
+```text
+0003462-37.2022.4.05.8400   ==   00034623720224058400
+```
+
+Bonus behaviors (helpful for LLM clients):
+
+- **Tribunal inference** — `get_case(process_number=...)` without `tribunal`
+  derives it from the number's J/TR fields (federal, labor, electoral and
+  state courts). If `tribunal` is also given and disagrees, you get a clear
+  error naming the right alias.
+- **Check-digit validation** (Resolução CNJ 65/2008) — a number with wrong
+  check digits still gets queried, but the response carries a
+  `number_warning` with the expected digits, so typos surface immediately.
+- **"Did you mean"** — mistyped tribunal aliases get the closest match
+  suggested.
+
 ## Data model (API request fields, PT-BR)
 
 Key queryable fields — full list via `list_fields` or `datajud://glossary`:
